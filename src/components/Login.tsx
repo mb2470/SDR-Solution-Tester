@@ -27,6 +27,9 @@ export default function Login() {
         localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('authToken', response.data.token);
         localStorage.setItem('userEmail', email);
+        if (response.data.orgId) {
+          localStorage.setItem('orgId', response.data.orgId);
+        }
         navigate('/dashboard');
       } else {
         throw new Error('No token received from server');

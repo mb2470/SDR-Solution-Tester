@@ -97,14 +97,33 @@ export default function Dashboard() {
 
   const executeTest = async (testId: string, params?: any) => {
     const suite = SDR_TEST_SPECS.find(s => s.tests?.includes(testId) || s.id === testId);
-    const testName = suite ? `${suite.name} [${testId}]` : testId;
     const token = localStorage.getItem('authToken');
+    const orgId = localStorage.getItem('orgId') || 'default_org'; // Fallback for testing
     
+    // Map test IDs to actual backend functional paths and actions
+    let endpoint = `${API_BASE_URL}/email/settings`;
+    let action = 'test';
+
+    if (testId.startsWith('2.')) {
+      endpoint = `${API_BASE_URL}/email/domains`;
+      if (testId === '2.5') action = 'search';
+      if (testId === '2.7') action = 'purchase';
+      if (testId === '2.6') action = 'list';
+    } else if (testId.startsWith('3.')) {
+      endpoint = `${API_BASE_URL}/email/accounts`;
+      if (testId === '3.1') action = 'list-accounts';
+    }
+
     try {
       const startTime = Date.now();
-      const response = await axios.post(`${API_BASE_URL}/test/${testId}`, params, {
+      const response = await axios.post(endpoint, {
+        ...params,
+        org_id: orgId,
+        action: params?.action || action
+      }, {
         headers: {
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
+          'X-Org-Id': orgId
         }
       });
       const latency = `${Date.now() - startTime}ms`;
@@ -112,10 +131,10 @@ export default function Dashboard() {
       const newResult: TestResult = {
         id: Math.random().toString(36).substr(2, 9),
         timestamp: new Date().toISOString().replace('T', ' ').substr(0, 19),
-        endpoint: `/api/v1/test/${testId}`,
+        endpoint: endpoint.replace(API_BASE_URL, ''),
         status: 'success',
         latency,
-        details: `Server Response: ${JSON.stringify(response.data)}`
+        details: `Action: ${action} | Response: ${JSON.stringify(response.data)}`
       };
       
       setResults(prev => [newResult, ...prev]);
@@ -125,10 +144,10 @@ export default function Dashboard() {
       const newResult: TestResult = {
         id: Math.random().toString(36).substr(2, 9),
         timestamp: new Date().toISOString().replace('T', ' ').substr(0, 19),
-        endpoint: `/api/v1/test/${testId}`,
+        endpoint: endpoint.replace(API_BASE_URL, ''),
         status: 'error',
         latency,
-        details: `Error: ${err.response?.data?.message || err.message}`
+        details: `Error: ${err.response?.data?.error || err.response?.data?.message || err.message}`
       };
       
       setResults(prev => [newResult, ...prev]);
